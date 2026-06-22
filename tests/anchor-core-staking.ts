@@ -167,6 +167,35 @@ describe("anchor-core-staking", () => {
     console.log("\nTime traveled in days", TIME_TRAVEL_IN_DAYS)
   });
 
+  
+ it("Claim rewards before freeze period ends (should succeed)", async () => {
+    const userRewardsAta = getAssociatedTokenAddressSync(rewardsMint, provider.wallet.publicKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
+    const tx = await program.methods.claimRewards()
+    .accountsPartial({
+      owner: provider.wallet.publicKey,
+      updateAuthority,
+      config,
+      rewardsMint,
+      userRewardsAta,
+      asset: nftKeypair.publicKey,
+      collection: collectionKeypair.publicKey,
+      mplCoreProgram: MPL_CORE_PROGRAM_ID,
+      systemProgram: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+    })
+    .rpc();
+    console.log("\nClaim rewards tx:", tx);
+    console.log("User rewards balance after claim:", (await provider.connection.getTokenAccountBalance(userRewardsAta)).value.uiAmount);
+
+    // Verify NFT is still staked
+    const assetData = await fetchAsset(provider.connection, nftKeypair.publicKey);
+    const attrsPlugin = (assetData as any).plugins?.find((p: any) => p.type === 'Attributes');
+    if (attrsPlugin) {
+      const staked = attrsPlugin.attributes.attribute_list.find((a: any) => a.key === 'staked');
+      console.log("NFT still staked:", staked?.value);
+    }
+  });
   it("Unstake an NFT", async () => {
     // Get the user rewards ATA account
     const userRewardsAta = getAssociatedTokenAddressSync(rewardsMint, provider.wallet.publicKey, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID);
